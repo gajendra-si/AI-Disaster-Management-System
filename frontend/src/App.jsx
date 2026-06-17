@@ -3,23 +3,23 @@ import axios from "axios";
 import jsPDF from "jspdf";
 
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
+BarChart,
+Bar,
+XAxis,
+YAxis,
+Tooltip,
+ResponsiveContainer,
+PieChart,
+Pie,
+Cell,
+Legend,
 } from "recharts";
 
 import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
+MapContainer,
+TileLayer,
+Marker,
+Popup,
 } from "react-leaflet";
 
 import "leaflet/dist/leaflet.css";
@@ -30,72 +30,142 @@ import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
-
 delete L.Icon.Default.prototype._getIconUrl;
 
 L.Icon.Default.mergeOptions({
 
-  iconRetinaUrl: markerIcon2x,
+iconRetinaUrl: markerIcon2x,
 
-  iconUrl: markerIcon,
+iconUrl: markerIcon,
 
-  shadowUrl: markerShadow,
+shadowUrl: markerShadow,
 
 });
 
 
-// Marker Colors
 
-const getMarkerColor = (severity) => {
+const getMarkerColor=(severity)=>{
 
-  if (severity === "HIGH") {
+if(severity==="HIGH"){
 
-    return "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png";
+return "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png";
 
-  }
+}
 
-  if (severity === "MEDIUM") {
+if(severity==="MEDIUM"){
 
-    return "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png";
+return "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png";
 
-  }
+}
 
-  return "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png";
+return "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png";
 
 };
 
 
 
 
-function App() {
+
+function App(){
 
 
-const [reports, setReports] = useState([]);
-
-const [weather, setWeather] = useState(null);
-
-const [userLocation, setUserLocation] = useState([28.6139,77.209]);
+const API_KEY="ad389e10c92b706295db4d0fa2058ecb";
 
 
 
-const [formData, setFormData] = useState({
+const [reports,setReports]=useState([]);
+
+const [weather,setWeather]=useState(null);
+
+const [cityName,setCityName]=useState("");
+
+const [currentTime,setCurrentTime]=useState(
+
+new Date().toLocaleString()
+
+);
+
+
+
+const [userLocation,setUserLocation]=useState([28.6139,77.2090]);
+
+
+
+const [formData,setFormData]=useState({
 
 type:"",
 
 location:"",
 
-latitude:"",
-
-longitude:"",
-
-description:"",
+description:""
 
 });
 
 
 
+// LIVE DATE TIME
 
-// Current User Location
+useEffect(()=>{
+
+const timer=setInterval(()=>{
+
+setCurrentTime(
+
+new Date().toLocaleString()
+
+);
+
+},1000);
+
+
+
+return()=>clearInterval(timer);
+
+},[]);
+
+
+
+
+// WEATHER ICON
+
+const getWeatherIcon=()=>{
+
+
+if(!weather)
+
+return "🌤";
+
+
+const condition=
+
+weather.weather[0].main.toLowerCase();
+
+
+
+if(condition.includes("clear"))
+
+return "☀️";
+
+
+if(condition.includes("cloud"))
+
+return "☁️";
+
+
+if(condition.includes("rain"))
+
+return "🌧️";
+
+
+if(condition.includes("thunder"))
+
+return "⛈️";
+
+
+return "🌤";
+
+};
+// CURRENT USER LOCATION
 
 useEffect(()=>{
 
@@ -110,6 +180,22 @@ position.coords.latitude,
 position.coords.longitude
 
 ]);
+
+fetchWeather(
+
+position.coords.latitude,
+
+position.coords.longitude
+
+);
+
+fetchCity(
+
+position.coords.latitude,
+
+position.coords.longitude
+
+);
 
 },
 
@@ -126,219 +212,363 @@ console.log(error);
 
 
 
-// Load Reports
+// OPEN WEATHER API
+
+const fetchWeather=async(lat,lon)=>{
+
+try{
+
+const response=await axios.get(
+
+`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`
+
+);
+
+setWeather(response.data);
+
+}
+
+catch(error){
+
+console.log(error);
+
+}
+
+};
+
+
+
+
+// CURRENT CITY NAME
+
+const fetchCity=async(lat,lon)=>{
+
+try{
+
+const response=await axios.get(
+
+`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`
+
+);
+
+
+const address=response.data.address;
+
+
+setCityName(
+
+address.city ||
+
+address.town ||
+
+address.village ||
+
+address.state
+
+);
+
+
+}
+
+catch(error){
+
+console.log(error);
+
+}
+
+};
+
+
+
+
+// FETCH REPORTS
 
 useEffect(()=>{
 
 fetchReports();
 
 },[]);
-const fetchReports = async () => {
-
-  try {
-
-    const response = await axios.get(
-
-      "http://127.0.0.1:8000/reports"
-
-    );
-
-    setReports(response.data);
-
-  }
-
-  catch(error){
-
-    console.log(error);
-
-  }
-
-};
 
 
 
+const fetchReports=async()=>{
 
-const handleChange = (e) => {
+try{
 
-  setFormData({
+const response=await axios.get(
 
-    ...formData,
+"http://127.0.0.1:8000/reports"
 
-    [e.target.name]: e.target.value,
+);
 
-  });
+setReports(response.data);
+
+}
+
+catch(error){
+
+console.log(error);
+
+}
 
 };
 
 
 
 
+// HANDLE INPUT
 
-const handleSubmit = async (e) => {
+const handleChange=(e)=>{
 
-  e.preventDefault();
+setFormData({
 
-  try{
+...formData,
 
-    await axios.post(
+[e.target.name]:e.target.value
 
-      "http://127.0.0.1:8000/reports",
-
-      {
-
-        ...formData,
-
-        latitude:Number(formData.latitude),
-
-        longitude:Number(formData.longitude),
-
-      }
-
-    );
-
-    alert("Report Saved Successfully!");
-
-    fetchReports();
-
-
-
-    setFormData({
-
-      type:"",
-
-      location:"",
-
-      latitude:"",
-
-      longitude:"",
-
-      description:"",
-
-    });
-
-  }
-
-  catch(error){
-
-    console.log(error);
-
-  }
+});
 
 };
 
 
 
 
+// AUTO LATITUDE LONGITUDE
 
-const deleteReport = async(id)=>{
+const getCoordinates=async(city)=>{
 
-  try{
+try{
 
-    await axios.delete(
+const response=await axios.get(
 
-      `http://127.0.0.1:8000/reports/${id}`
+`https://nominatim.openstreetmap.org/search?format=json&q=${city}`
 
-    );
+);
 
-    fetchReports();
 
-  }
 
-  catch(error){
+if(response.data.length>0){
 
-    console.log(error);
+return{
 
-  }
+lat:Number(response.data[0].lat),
+
+lon:Number(response.data[0].lon)
+
+};
+
+}
+
+}
+
+catch(error){
+
+console.log(error);
+
+}
+
+
+return null;
+
+};
+// SUBMIT REPORT
+
+const handleSubmit=async(e)=>{
+
+e.preventDefault();
+
+try{
+
+const coords=await getCoordinates(
+
+formData.location
+
+);
+
+
+if(!coords){
+
+alert("Location Not Found");
+
+return;
+
+}
+
+
+await axios.post(
+
+"http://127.0.0.1:8000/reports",
+
+{
+
+type:formData.type,
+
+location:formData.location,
+
+latitude:coords.lat,
+
+longitude:coords.lon,
+
+description:formData.description
+
+}
+
+);
+
+
+alert("✅ Report Saved Successfully");
+
+
+fetchReports();
+
+
+setFormData({
+
+type:"",
+
+location:"",
+
+description:""
+
+});
+
+}
+
+catch(error){
+
+console.log(error);
+
+}
 
 };
 
 
 
 
+// DELETE REPORT
 
+const deleteReport=async(id)=>{
 
-const downloadPDF = ()=>{
+try{
 
-  const doc = new jsPDF();
+await axios.delete(
 
-  doc.setFontSize(22);
+`http://127.0.0.1:8000/reports/${id}`
 
-  doc.text(
+);
 
-    "AI Disaster Reports",
+fetchReports();
 
-    20,
+}
 
-    20
+catch(error){
 
-  );
+console.log(error);
 
-  let y=40;
-
-  reports.forEach((report)=>{
-
-    doc.setFontSize(14);
-
-    doc.text(
-
-      `Type : ${report.type}`,
-
-      20,
-
-      y
-
-    );
-
-    y+=10;
-
-    doc.text(
-
-      `Location : ${report.location}`,
-
-      20,
-
-      y
-
-    );
-
-    y+=10;
-
-    doc.text(
-
-      `Description : ${report.description}`,
-
-      20,
-
-      y
-
-    );
-
-    y+=10;
-
-    doc.text(
-
-      `Severity : ${report.severity}`,
-
-      20,
-
-      y
-
-    );
-
-    y+=20;
-
-  });
-
-  doc.save("DisasterReports.pdf");
+}
 
 };
 
 
 
 
+// DOWNLOAD PDF
+
+const downloadPDF=()=>{
 
 
-const pieData = [
+const doc=new jsPDF();
+
+
+doc.setFontSize(24);
+
+doc.text(
+
+"AI Disaster Management Report",
+
+20,
+
+20
+
+);
+
+
+
+let y=40;
+
+
+reports.forEach((report)=>{
+
+
+doc.setFontSize(14);
+
+
+doc.text(
+
+`Type : ${report.type}`,
+
+20,
+
+y
+
+);
+
+y+=10;
+
+
+doc.text(
+
+`Location : ${report.location}`,
+
+20,
+
+y
+
+);
+
+y+=10;
+
+
+doc.text(
+
+`Description : ${report.description}`,
+
+20,
+
+y
+
+);
+
+y+=10;
+
+
+doc.text(
+
+`Severity : ${report.severity}`,
+
+20,
+
+y
+
+);
+
+y+=20;
+
+
+});
+
+
+doc.save("DisasterReports.pdf");
+
+
+};
+
+
+
+
+// PIE CHART DATA
+
+const pieData=[
 
 {
 
@@ -384,48 +614,44 @@ r=>r.severity==="LOW"
 
 const COLORS=[
 
-"#ef4444",
+"#ff1744",
 
-"#f59e0b",
+"#ff9100",
 
-"#22c55e"
+"#00e676"
 
 ];
-
-
-
 return(
 
-<div
-
-style={{
-
-background:"#0f172a",
+<div style={{
 
 minHeight:"100vh",
 
-padding:"30px",
+padding:"25px",
 
-color:"white"
+background:"linear-gradient(135deg,#0f172a,#1e293b,#312e81)",
 
-}}
+color:"white",
 
->
-<h1
+fontFamily:"Poppins"
 
-style={{
+}}>
+
+
+
+<h1 style={{
 
 textAlign:"center",
 
-fontSize:"42px",
+fontSize:"45px",
 
-marginBottom:"30px",
+marginBottom:"35px",
 
-fontWeight:"bold"
+fontWeight:"bold",
 
-}}
+textShadow:"0 0 20px cyan"
 
->
+}}>
 
 🌍 AI Disaster Dashboard
 
@@ -433,43 +659,37 @@ fontWeight:"bold"
 
 
 
-<div
 
-style={{
+{/* TOP DASHBOARD CARDS */}
 
-display:"flex",
+
+
+<div style={{
+
+display:"grid",
+
+gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",
 
 gap:"20px",
 
-flexWrap:"wrap",
-
 marginBottom:"30px"
 
-}}
+}}>
 
->
 
-{/* FIRE */}
 
-<div
 
-style={{
+<div style={{
 
-background:"#1e293b",
+background:"linear-gradient(135deg,#ff416c,#ff4b2b)",
 
 padding:"25px",
 
-borderRadius:"20px",
+borderRadius:"25px",
 
-flex:1,
+boxShadow:"0 10px 30px rgba(255,0,0,.3)"
 
-minWidth:"220px",
-
-boxShadow:"0 10px 25px rgba(0,0,0,.4)"
-
-}}
-
->
+}}>
 
 <h2>🔥 Fire Alerts</h2>
 
@@ -479,7 +699,7 @@ boxShadow:"0 10px 25px rgba(0,0,0,.4)"
 
 reports.filter(
 
-r=>r.type?.trim().toLowerCase()==="fire"
+r=>r.type?.toLowerCase()==="fire"
 
 ).length
 
@@ -492,27 +712,18 @@ r=>r.type?.trim().toLowerCase()==="fire"
 
 
 
-{/* FLOOD */}
 
-<div
+<div style={{
 
-style={{
-
-background:"#1e293b",
+background:"linear-gradient(135deg,#00c6ff,#0072ff)",
 
 padding:"25px",
 
-borderRadius:"20px",
+borderRadius:"25px",
 
-flex:1,
+boxShadow:"0 10px 30px rgba(0,150,255,.3)"
 
-minWidth:"220px",
-
-boxShadow:"0 10px 25px rgba(0,0,0,.4)"
-
-}}
-
->
+}}>
 
 <h2>🌊 Flood Alerts</h2>
 
@@ -522,7 +733,7 @@ boxShadow:"0 10px 25px rgba(0,0,0,.4)"
 
 reports.filter(
 
-r=>r.type?.trim().toLowerCase()==="flood"
+r=>r.type?.toLowerCase()==="flood"
 
 ).length
 
@@ -536,27 +747,17 @@ r=>r.type?.trim().toLowerCase()==="flood"
 
 
 
-{/* TOTAL */}
+<div style={{
 
-<div
-
-style={{
-
-background:"#1e293b",
+background:"linear-gradient(135deg,#7f00ff,#e100ff)",
 
 padding:"25px",
 
-borderRadius:"20px",
+borderRadius:"25px",
 
-flex:1,
+boxShadow:"0 10px 30px rgba(150,0,255,.3)"
 
-minWidth:"220px",
-
-boxShadow:"0 10px 25px rgba(0,0,0,.4)"
-
-}}
-
->
+}}>
 
 <h2>📊 Total Reports</h2>
 
@@ -568,34 +769,35 @@ boxShadow:"0 10px 25px rgba(0,0,0,.4)"
 
 </div>
 
+
 </div>
 
 
 
 
 
+{/* AI RISK */}
 
-{/* AI ANALYSIS */}
 
-<div
 
-style={{
+<div style={{
 
-background:"#1e293b",
+background:"rgba(255,255,255,.08)",
 
-padding:"25px",
+backdropFilter:"blur(15px)",
 
-borderRadius:"20px",
+padding:"30px",
 
-marginBottom:"30px",
+borderRadius:"25px",
 
-boxShadow:"0 10px 25px rgba(0,0,0,.4)"
+marginBottom:"30px"
 
-}}
+}}>
 
->
 
 <h2>🤖 AI Risk Analysis</h2>
+
+
 
 {
 
@@ -603,7 +805,7 @@ reports.length>0
 
 ?
 
-<div>
+<>
 
 <p>
 
@@ -611,14 +813,11 @@ Latest Disaster :
 
 <b>
 
-{" "}
-
 {reports[reports.length-1].type}
 
 </b>
 
 </p>
-
 
 
 <p>
@@ -635,7 +834,7 @@ reports[reports.length-1].severity==="HIGH"
 
 ?
 
-"#ef4444"
+"#ff1744"
 
 :
 
@@ -643,17 +842,15 @@ reports[reports.length-1].severity==="MEDIUM"
 
 ?
 
-"#f59e0b"
+"#ff9100"
 
 :
 
-"#22c55e"
+"#00e676"
 
 }}
 
 >
-
-{" "}
 
 {reports[reports.length-1].severity}
 
@@ -673,46 +870,58 @@ reports[reports.length-1].severity==="HIGH"
 
 ?
 
-" Evacuate Area Immediately"
+"🚨 Evacuate Area Immediately"
 
 :
 
-" Monitor Situation"
+"⚠ Monitor Situation"
 
 }
 
 </p>
 
-</div>
+</>
 
 :
 
-<p>No Reports Available</p>
+<p>
+
+No Reports Available
+
+</p>
 
 }
 
 </div>
-{/* DISASTER ANALYTICS */}
 
-<div
 
-style={{
 
-background:"#1e293b",
+
+
+{/* BAR CHART */}
+
+
+<div style={{
+
+background:"rgba(255,255,255,.08)",
+
+backdropFilter:"blur(15px)",
 
 padding:"25px",
 
-borderRadius:"20px",
+borderRadius:"25px",
 
 marginBottom:"30px"
 
-}}
+}}>
 
->
+
 
 <h2>📊 Disaster Analytics</h2>
 
+
 <ResponsiveContainer width="100%" height={300}>
+
 
 <BarChart
 
@@ -722,9 +931,11 @@ data={[
 
 name:"Fire",
 
-count:reports.filter(
+count:
 
-r=>r.type?.trim().toLowerCase()==="fire"
+reports.filter(
+
+r=>r.type?.toLowerCase()==="fire"
 
 ).length
 
@@ -734,9 +945,11 @@ r=>r.type?.trim().toLowerCase()==="fire"
 
 name:"Flood",
 
-count:reports.filter(
+count:
 
-r=>r.type?.trim().toLowerCase()==="flood"
+reports.filter(
+
+r=>r.type?.toLowerCase()==="flood"
 
 ).length
 
@@ -746,40 +959,44 @@ r=>r.type?.trim().toLowerCase()==="flood"
 
 >
 
+
 <XAxis dataKey="name"/>
 
 <YAxis/>
 
 <Tooltip/>
 
-<Bar dataKey="count"/>
+
+<Bar
+
+dataKey="count"
+
+fill="#00e5ff"
+
+/>
+
 
 </BarChart>
 
 </ResponsiveContainer>
 
+
 </div>
-
-
-
-
 {/* PIE CHART */}
 
-<div
+<div style={{
 
-style={{
+background:"rgba(255,255,255,.08)",
 
-background:"#1e293b",
+backdropFilter:"blur(15px)",
 
 padding:"25px",
 
-borderRadius:"20px",
+borderRadius:"25px",
 
 marginBottom:"30px"
 
-}}
-
->
+}}>
 
 <h2>🥧 Severity Distribution</h2>
 
@@ -830,97 +1047,213 @@ fill={COLORS[index]}
 
 
 
-{/* WEATHER */}
+{/* PREMIUM WEATHER CARD */}
 
-<div
 
-style={{
+<div style={{
 
-background:"#1e293b",
+background:"linear-gradient(135deg,#00c6ff,#0072ff)",
 
-padding:"25px",
+padding:"30px",
 
-borderRadius:"20px",
+borderRadius:"25px",
 
-marginBottom:"30px"
+marginBottom:"30px",
 
-}}
+boxShadow:"0 15px 35px rgba(0,150,255,.4)"
 
->
+}}>
 
-<h2>🌤 Weather Status</h2>
+
+
+<h2 style={{
+
+fontSize:"32px"
+
+}}>
+
+{getWeatherIcon()}
+
+Live Weather
+
+</h2>
+
+
+
+{
+
+weather && weather.main ?
+
+<>
 
 <p>
 
-Current Location :
+📍 Current Location :
 
 <b>
 
-{userLocation[0].toFixed(2)}
-
-,
-
-{userLocation[1].toFixed(2)}
+{cityName}
 
 </b>
 
 </p>
+
+
 
 <p>
 
-Status :
+🕒
 
-<b style={{color:"#22c55e"}}>
+{currentTime}
 
-Normal
+</p>
+
+
+
+<p>
+
+🌡 Temperature :
+
+<b>
+
+{weather.main.temp}°C
 
 </b>
 
 </p>
+
+
+
+<p>
+
+💧 Humidity :
+
+<b>
+
+{weather.main.humidity}%
+
+</b>
+
+</p>
+
+
+
+<p>
+
+💨 Wind :
+
+<b>
+
+{weather.wind.speed} m/s
+
+</b>
+
+</p>
+
+
+
+<p>
+
+☁ Condition :
+
+<b>
+
+{weather.weather[0].description}
+
+</b>
+
+</p>
+
+</>
+
+:
+
+<p>
+
+Loading Weather...
+
+</p>
+
+}
 
 </div>
 
 
 
 
+{/* PREMIUM SOS */}
 
-{/* SOS */}
 
-<div
 
-style={{
+<div style={{
 
-background:"#dc2626",
+background:"linear-gradient(135deg,#ff0844,#ffb199)",
 
-padding:"25px",
+padding:"30px",
 
-borderRadius:"20px",
+borderRadius:"25px",
 
-marginBottom:"30px"
+textAlign:"center",
 
-}}
+marginBottom:"30px",
 
->
+boxShadow:"0 10px 30px rgba(255,0,0,.3)"
 
-<h2>🚨 Emergency SOS</h2>
+}}>
+
+
+
+<h1>
+
+🚨 Emergency SOS
+
+</h1>
+
+
+
+<h2>
+
+📞 Emergency : 112
+
+</h2>
+
+
+
+<h2>
+
+☎ Disaster Helpline : 1078
+
+</h2>
+
+
 
 <button
 
-onClick={()=>alert("Emergency Alert Sent!")}
+onClick={()=>alert(
+
+"Emergency Alert Sent Successfully!"
+
+)}
 
 style={{
 
-padding:"15px 25px",
+padding:"18px 35px",
+
+background:"white",
+
+color:"#ff0844",
 
 border:"none",
 
-borderRadius:"10px",
-
-cursor:"pointer",
+borderRadius:"15px",
 
 fontWeight:"bold",
 
-fontSize:"16px"
+fontSize:"18px",
+
+cursor:"pointer",
+
+marginTop:"15px"
 
 }}
 
@@ -930,28 +1263,41 @@ SEND SOS ALERT
 
 </button>
 
+
 </div>
+
+
+
+
+
 {/* REPORT FORM */}
 
-<div
 
-style={{
+<div style={{
 
-background:"#1e293b",
+background:"rgba(255,255,255,.08)",
 
-padding:"25px",
+backdropFilter:"blur(15px)",
 
-borderRadius:"20px",
+padding:"30px",
+
+borderRadius:"25px",
 
 marginBottom:"30px"
 
-}}
+}}>
 
->
 
-<h2>📝 Report Disaster</h2>
+<h2>
+
+📝 Report Disaster
+
+</h2>
+
+
 
 <form onSubmit={handleSubmit}>
+
 
 <input
 
@@ -959,7 +1305,7 @@ type="text"
 
 name="type"
 
-placeholder="Disaster Type"
+placeholder="Disaster Type (Fire/Flood)"
 
 value={formData.type}
 
@@ -975,13 +1321,16 @@ padding:"15px",
 
 marginBottom:"15px",
 
-borderRadius:"10px",
+borderRadius:"15px",
 
-border:"none"
+border:"none",
+
+fontSize:"16px"
 
 }}
 
 />
+
 
 
 <input
@@ -990,7 +1339,7 @@ type="text"
 
 name="location"
 
-placeholder="Location"
+placeholder="Enter City Name"
 
 value={formData.location}
 
@@ -1006,73 +1355,11 @@ padding:"15px",
 
 marginBottom:"15px",
 
-borderRadius:"10px",
+borderRadius:"15px",
 
-border:"none"
+border:"none",
 
-}}
-
-/>
-
-
-
-<input
-
-type="number"
-
-name="latitude"
-
-placeholder="Latitude"
-
-value={formData.latitude}
-
-onChange={handleChange}
-
-required
-
-style={{
-
-width:"100%",
-
-padding:"15px",
-
-marginBottom:"15px",
-
-borderRadius:"10px",
-
-border:"none"
-
-}}
-
-/>
-
-
-
-<input
-
-type="number"
-
-name="longitude"
-
-placeholder="Longitude"
-
-value={formData.longitude}
-
-onChange={handleChange}
-
-required
-
-style={{
-
-width:"100%",
-
-padding:"15px",
-
-marginBottom:"15px",
-
-borderRadius:"10px",
-
-border:"none"
+fontSize:"16px"
 
 }}
 
@@ -1084,7 +1371,7 @@ border:"none"
 
 name="description"
 
-placeholder="Description"
+placeholder="Describe Disaster"
 
 value={formData.description}
 
@@ -1100,11 +1387,11 @@ width:"100%",
 
 padding:"15px",
 
-marginBottom:"15px",
+borderRadius:"15px",
 
-borderRadius:"10px",
+border:"none",
 
-border:"none"
+marginBottom:"15px"
 
 }}
 
@@ -1118,19 +1405,21 @@ type="submit"
 
 style={{
 
-background:"#2563eb",
+background:"linear-gradient(135deg,#11998e,#38ef7d)",
 
 color:"white",
 
-padding:"12px 25px",
+padding:"15px 30px",
 
 border:"none",
 
-borderRadius:"10px",
+borderRadius:"15px",
+
+fontWeight:"bold",
 
 cursor:"pointer",
 
-fontWeight:"bold"
+fontSize:"17px"
 
 }}
 
@@ -1140,41 +1429,33 @@ Submit Report
 
 </button>
 
+
 </form>
 
 </div>
-
-
-
-
-
 {/* LIVE DISASTER MAP */}
 
-<div
+<div style={{
 
-style={{
+background:"rgba(255,255,255,.08)",
 
-background:"#1e293b",
+backdropFilter:"blur(15px)",
 
 padding:"25px",
 
-borderRadius:"20px",
+borderRadius:"25px",
 
 marginBottom:"30px"
 
-}}
-
->
+}}>
 
 <h2>🗺️ Live Disaster Map</h2>
-
-
 
 <MapContainer
 
 center={
 
-reports.length > 0
+reports.length>0
 
 ?
 
@@ -1192,11 +1473,11 @@ userLocation
 
 }
 
-zoom={8}
+zoom={6}
 
 style={{
 
-height:"450px",
+height:"500px",
 
 width:"100%",
 
@@ -1205,7 +1486,6 @@ borderRadius:"20px"
 }}
 
 >
-
 
 
 <TileLayer
@@ -1255,21 +1535,35 @@ popupAnchor:[1,-34]
 
 <Popup>
 
-<b>{report.type}</b>
+<h3>
 
-<br/>
+{report.type}
 
-{report.location}
+</h3>
 
-<br/>
+<p>
 
-{report.description}
+📍 {report.location}
 
-<br/>
+</p>
+
+<p>
+
+📝 {report.description}
+
+</p>
+
+<p>
 
 Severity :
 
+<b>
+
 {report.severity}
+
+</b>
+
+</p>
 
 </Popup>
 
@@ -1282,13 +1576,7 @@ Severity :
 
 
 
-{/* USER LOCATION */}
-
-<Marker
-
-position={userLocation}
-
->
+<Marker position={userLocation}>
 
 <Popup>
 
@@ -1299,31 +1587,23 @@ position={userLocation}
 </Marker>
 
 
-
 </MapContainer>
 
 </div>
-{/* DOWNLOAD PDF */}
 
-<button
 
-onClick={downloadPDF}
+
+
+
+{/* PDF BUTTON */}
+
+
+
+<div
 
 style={{
 
-background:"#2563eb",
-
-color:"white",
-
-padding:"14px 25px",
-
-border:"none",
-
-borderRadius:"10px",
-
-cursor:"pointer",
-
-fontWeight:"bold",
+textAlign:"center",
 
 marginBottom:"30px"
 
@@ -1331,16 +1611,68 @@ marginBottom:"30px"
 
 >
 
-📥 Download PDF
+
+<button
+
+onClick={downloadPDF}
+
+style={{
+
+background:"linear-gradient(135deg,#00b09b,#96c93d)",
+
+padding:"18px 35px",
+
+border:"none",
+
+borderRadius:"18px",
+
+fontWeight:"bold",
+
+fontSize:"18px",
+
+color:"white",
+
+cursor:"pointer",
+
+boxShadow:"0 10px 30px rgba(0,255,150,.3)"
+
+}}
+
+>
+
+📥 Download PDF Report
 
 </button>
+
+</div>
+
 
 
 
 
 {/* SUBMITTED REPORTS */}
 
-<h2>📋 Submitted Reports</h2>
+
+
+<h2
+
+style={{
+
+marginBottom:"20px",
+
+fontSize:"35px"
+
+}}
+
+>
+
+📋 Submitted Reports
+
+</h2>
+
+
+
+
 
 {
 
@@ -1352,15 +1684,17 @@ key={report.id}
 
 style={{
 
-background:"#1e293b",
+background:"rgba(255,255,255,.08)",
 
-padding:"20px",
+backdropFilter:"blur(15px)",
 
-borderRadius:"15px",
+padding:"25px",
 
-marginBottom:"15px",
+borderRadius:"25px",
 
-boxShadow:"0 10px 20px rgba(0,0,0,.3)"
+marginBottom:"20px",
+
+boxShadow:"0 10px 30px rgba(0,0,0,.3)"
 
 }}
 
@@ -1372,15 +1706,23 @@ boxShadow:"0 10px 20px rgba(0,0,0,.3)"
 
 </h2>
 
+
+
 <p>
 
-📍 {report.location}
+📍
+
+{report.location}
 
 </p>
 
+
+
 <p>
 
-📝 {report.description}
+📝
+
+{report.description}
 
 </p>
 
@@ -1400,7 +1742,7 @@ report.severity==="HIGH"
 
 ?
 
-"#ef4444"
+"#ff1744"
 
 :
 
@@ -1408,15 +1750,15 @@ report.severity==="MEDIUM"
 
 ?
 
-"#f59e0b"
+"#ff9100"
 
 :
 
-"#22c55e",
+"#00e676",
 
-padding:"6px 12px",
+padding:"7px 15px",
 
-borderRadius:"10px",
+borderRadius:"15px",
 
 marginLeft:"10px",
 
@@ -1441,17 +1783,19 @@ onClick={()=>deleteReport(report.id)}
 
 style={{
 
-background:"#dc2626",
+background:"#ff1744",
 
 color:"white",
 
+padding:"12px 20px",
+
 border:"none",
 
-padding:"10px 18px",
+borderRadius:"12px",
 
-borderRadius:"10px",
+cursor:"pointer",
 
-cursor:"pointer"
+fontWeight:"bold"
 
 }}
 
@@ -1460,6 +1804,8 @@ cursor:"pointer"
 🗑 Delete
 
 </button>
+
+
 
 </div>
 
@@ -1475,5 +1821,7 @@ cursor:"pointer"
 );
 
 }
+
+
 
 export default App;
