@@ -118,6 +118,6 @@ The model predicts:
 
 **Gajendra Singh**
 B.Tech CSE - 7th Semester
-Jaypee University, Anoopshahr
+Jaypee University
 
 ⭐ If you like this project, give it a Star on GitHub.
